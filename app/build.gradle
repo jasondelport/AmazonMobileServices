@@ -1,0 +1,44 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 23
+    buildToolsVersion "23.0.3"
+
+    defaultConfig {
+        applicationId "com.jasondelport.nobelprize.nobelprizelaureates"
+        minSdkVersion 16
+        targetSdkVersion 23
+        versionCode 1
+        versionName "1.0"
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+    testCompile 'junit:junit:4.12'
+
+    def GOOGLE_LIBRARY_VERSION = '23.4.0'
+    compile "com.android.support:recyclerview-v7:$GOOGLE_LIBRARY_VERSION"
+    compile "com.android.support:support-v13:$GOOGLE_LIBRARY_VERSION"
+    compile "com.android.support:appcompat-v7:$GOOGLE_LIBRARY_VERSION"
+
+    def AMAZON_SDK_VERSION = '2.2.16'
+    compile "com.amazonaws:aws-android-sdk-core:$AMAZON_SDK_VERSION"
+    compile "com.amazonaws:aws-android-sdk-cognito:$AMAZON_SDK_VERSION"
+    compile "com.amazonaws:aws-android-sdk-s3:$AMAZON_SDK_VERSION"
+    compile "com.amazonaws:aws-android-sdk-ddb:$AMAZON_SDK_VERSION"
+    compile "com.amazonaws:aws-android-sdk-ddb-mapper:$AMAZON_SDK_VERSION"
+    compile "com.amazonaws:aws-android-sdk-sqs:$AMAZON_SDK_VERSION"
+    compile "com.amazonaws:aws-android-sdk-mobileanalytics:$AMAZON_SDK_VERSION"
+
+    compile 'io.reactivex:rxandroid:1.2.0'
+    compile 'io.reactivex:rxjava:1.1.5'
+
+    compile 'com.jakewharton.timber:timber:4.1.2'
+}
