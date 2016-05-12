@@ -9,6 +9,8 @@
 *.apk
 *.ap_
 
+secure.txt
+
 # Files for the Dalvik VM
 *.dex
 

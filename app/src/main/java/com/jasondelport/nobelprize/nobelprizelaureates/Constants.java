@@ -5,9 +5,12 @@ package com.jasondelport.nobelprize.nobelprizelaureates;
  */
 public class Constants {
 
+
     public static final String APP_ID = "";
     public static final String IDENTITY_POOL_ID = "";
     public static final String SQS_QUEUE = "";
+
+
 
     public static final String TABLE_NAME = "NobelPrizes";
 }
