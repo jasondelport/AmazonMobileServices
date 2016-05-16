@@ -12,5 +12,7 @@ public class Constants {
 
 
 
+
     public static final String TABLE_NAME = "NobelPrizes";
+    public static final String BUCKET_NAME = "nobelprizes";
 }

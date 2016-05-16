@@ -1,5 +1,8 @@
 package com.jasondelport.nobelprize.nobelprizelaureates;
 
+import android.Manifest;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
@@ -13,13 +16,21 @@ import android.widget.TextView;
 import com.amazonaws.auth.CognitoCachingCredentialsProvider;
 import com.amazonaws.mobileconnectors.amazonmobileanalytics.InitializationException;
 import com.amazonaws.mobileconnectors.amazonmobileanalytics.MobileAnalyticsManager;
+import com.amazonaws.mobileconnectors.s3.transferutility.TransferListener;
+import com.amazonaws.mobileconnectors.s3.transferutility.TransferObserver;
+import com.amazonaws.mobileconnectors.s3.transferutility.TransferState;
+import com.amazonaws.mobileconnectors.s3.transferutility.TransferUtility;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.sqs.AmazonSQS;
 import com.amazonaws.services.sqs.AmazonSQSClient;
 import com.amazonaws.services.sqs.model.SendMessageResult;
+import com.tbruyelle.rxpermissions.RxPermissions;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -27,6 +38,7 @@ import rx.Observable;
 import rx.Subscriber;
 import rx.Subscription;
 import rx.android.schedulers.AndroidSchedulers;
+import rx.functions.Action1;
 import rx.schedulers.Schedulers;
 import rx.subscriptions.Subscriptions;
 import timber.log.Timber;
@@ -58,6 +70,10 @@ public class MainActivity extends AppCompatActivity {
     private Subscription subscription = Subscriptions.empty();
     private AmazonDynamoDBClient ddbClient = null;
     private AmazonSQS sqsClient = null;
+    private AmazonS3 s3 = null;
+    private TransferUtility transferUtility = null;
+    private Button button3;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,6 +89,11 @@ public class MainActivity extends AppCompatActivity {
 
         sqsClient = new AmazonSQSClient(credentials);
         sqsClient.setRegion(Region.getRegion(Regions.US_WEST_2));
+
+        s3 = new AmazonS3Client(credentials);
+        s3.setRegion(Region.getRegion(Regions.US_WEST_2));
+
+        transferUtility = new TransferUtility(s3, this);
 
         try {
             analytics = MobileAnalyticsManager.getOrCreateInstance(
@@ -116,6 +137,25 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
+        button3 = (Button) findViewById(R.id.button3);
+        if (button3 != null) {
+            button3.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    selectPhotoFromGallery();
+                }
+            });
+        }
+
+
+        RxPermissions.getInstance(this)
+                .request(Manifest.permission.READ_EXTERNAL_STORAGE)
+                .subscribe(new Action1<Boolean>() {
+                    @Override
+                    public void call(Boolean granted) {
+
+                    }
+                });
     }
 
     @Override
@@ -138,6 +178,90 @@ public class MainActivity extends AppCompatActivity {
         if (analytics != null) {
             analytics.getSessionClient().pauseSession();
             analytics.getEventClient().submitEvents();
+        }
+    }
+
+    private void selectPhotoFromGallery() {
+
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("image/*");
+
+        Intent chooser = Intent.createChooser(intent, "Select Image");
+        startActivityForResult(chooser, 1);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 1 && resultCode == RESULT_OK && data != null && data.getData() != null) {
+
+            textView.setText("about to start uploading image");
+            button3.setEnabled(false);
+            runTask(data.getData());
+
+        }
+    }
+
+    private void runTask(Uri uri) {
+        Timber.d("uri path -> %s", uri.getPath());
+        File file = FileUtils.getFile(MainActivity.this, uri);
+        new UploadImageTask().execute(file);
+    }
+
+    private class UploadImageTask extends AsyncTask<File, Void, String> {
+        @Override
+        protected String doInBackground(File... params) {
+            Timber.d("Uploading image");
+            Timber.d("Image name -> %s", params[0].getName());
+            try {
+
+                TransferObserver transferObserver = transferUtility.upload(
+                        Constants.BUCKET_NAME,
+                        params[0].getName(),
+                        params[0]
+                );
+                transferObserver.setTransferListener(new TransferListener() {
+
+                    @Override
+                    public void onStateChanged(int id, TransferState state) {
+                        Timber.d("state change -> %s", state.name());
+                        if (state == TransferState.COMPLETED) {
+                            textView.setText("image upload completed");
+                            button3.setEnabled(true);
+                        }
+                    }
+
+                    @Override
+                    public void onProgressChanged(int id, long bytesCurrent, long bytesTotal) {
+                        try {
+                            int percentage = (int) (bytesCurrent / bytesTotal * 100);
+                            Timber.d("percent -> %d", percentage);
+                            textView.setText("percent complete -> " + percentage);
+                        } catch (Exception e) {
+                            Timber.e("error -> %s", e.getMessage());
+                        }
+                    }
+
+                    @Override
+                    public void onError(int id, Exception ex) {
+                        Timber.e("Error -> %s", ex.getMessage());
+                    }
+
+                });
+
+                return "";
+            } catch (Exception e) {
+                Timber.e("Error -> %s", e.getMessage());
+                return null;
+            }
+        }
+
+        @Override
+        protected void onPostExecute(String result) {
+            if (result != null) {
+                Timber.d("Result -> %s", result);
+            }
+
         }
     }
 

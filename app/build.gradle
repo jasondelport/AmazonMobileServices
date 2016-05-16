@@ -6,7 +6,7 @@ android {
 
     defaultConfig {
         applicationId "com.jasondelport.nobelprize.nobelprizelaureates"
-        minSdkVersion 16
+        minSdkVersion 19
         targetSdkVersion 23
         versionCode 1
         versionName "1.0"
@@ -41,4 +41,7 @@ dependencies {
     compile 'io.reactivex:rxjava:1.1.5'
 
     compile 'com.jakewharton.timber:timber:4.1.2'
+
+    //permissions
+    compile 'com.tbruyelle.rxpermissions:rxpermissions:0.7.0@aar'
 }

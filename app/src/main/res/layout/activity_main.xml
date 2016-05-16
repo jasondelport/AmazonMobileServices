@@ -27,11 +27,20 @@
         android:layout_below="@+id/button1"
         android:text="Request Data from DynamoDb"/>
 
+    <Button
+        android:id="@+id/button3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentStart="true"
+        android:layout_below="@+id/button2"
+        android:text="Upload Image to S3"/>
+
     <TextView
         android:id="@+id/textView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/button2"/>
+        android:layout_below="@+id/button3"/>
 
     <android.support.v7.widget.RecyclerView
         android:id="@+id/recyclerView"
