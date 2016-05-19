@@ -11,6 +11,7 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 
 import com.amazonaws.ClientConfiguration;
@@ -26,6 +27,7 @@ import com.amazonaws.mobileconnectors.cognitoidentityprovider.continuations.Auth
 import com.amazonaws.mobileconnectors.cognitoidentityprovider.continuations.AuthenticationDetails;
 import com.amazonaws.mobileconnectors.cognitoidentityprovider.continuations.MultiFactorAuthenticationContinuation;
 import com.amazonaws.mobileconnectors.cognitoidentityprovider.handlers.AuthenticationHandler;
+import com.amazonaws.mobileconnectors.cognitoidentityprovider.handlers.GenericHandler;
 import com.amazonaws.mobileconnectors.cognitoidentityprovider.handlers.SignUpHandler;
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferListener;
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferObserver;
@@ -62,8 +64,8 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onSuccess(CognitoUserSession userSession) {
-            Timber.d("Successful user authentication -> %s", userSession.toString());
-            textView.setText("success -> " + userSession.toString());
+            Timber.d("Successful user authentication -> %s", userSession.getAccessToken());
+            textView.setText("success -> " + userSession.getAccessToken().getJWTToken());
         }
 
         @Override
@@ -110,13 +112,17 @@ public class MainActivity extends AppCompatActivity {
     private CognitoUserPool userPool = null;
     private TransferUtility transferUtility = null;
     private String userId = null;
+
     SignUpHandler signUpHandler = new SignUpHandler() {
         @Override
         public void onSuccess(CognitoUser user, boolean signUpConfirmationState, CognitoUserCodeDeliveryDetails cognitoUserCodeDeliveryDetails) {
             userId = user.getUserId();
-
+            Timber.d("signup confirmation state -> %b", signUpConfirmationState);
+            Timber.d("attribute name -> %s", cognitoUserCodeDeliveryDetails.getAttributeName());
+            Timber.d("delivery medium -> %s", cognitoUserCodeDeliveryDetails.getDeliveryMedium());
+            Timber.d("destination -> %s", cognitoUserCodeDeliveryDetails.getDestination());
             Timber.d("Successful user registration -> %s", user.getUserId());
-            textView.setText("success -> " + user.getUserId());
+           textView.setText("success -> " + user.getUserId());
         }
 
         @Override
@@ -125,6 +131,21 @@ public class MainActivity extends AppCompatActivity {
             textView.setText(exception.getMessage());
         }
     };
+
+    GenericHandler genericHandler = new GenericHandler() {
+        @Override
+        public void onSuccess() {
+            Timber.d("confirmation success");
+            textView.setText("confirmation success");
+        }
+
+        @Override
+        public void onFailure(Exception exception) {
+            Timber.e(exception, "Error -> %s", exception.getMessage());
+            textView.setText(exception.getMessage());
+        }
+    };
+
     private Button button3;
 
     @Override
@@ -214,8 +235,8 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onClick(View v) {
                     CognitoUserAttributes atts = new CognitoUserAttributes();
-                    atts.addAttribute("email", "jason.delport@gmail.com");
-                    userPool.signUpInBackground("testuser", "Hello@1000", atts, null, signUpHandler);
+                    atts.addAttribute("email", Constants.EMAIL);
+                    userPool.signUpInBackground("testuser2", "Hello@1000", atts, null, signUpHandler);
                 }
             });
         }
@@ -226,9 +247,26 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onClick(View v) {
                     try {
-                        AuthenticationDetails authDetails = new AuthenticationDetails("testuser", "Hello@1000", null);
+                        AuthenticationDetails authDetails = new AuthenticationDetails("testuser3", "Hello@1000", null);
                         CognitoUser user = userPool.getUser(userId);
                         user.authenticateUserInBackground(authDetails, authHandler);
+                    } catch (Exception e) {
+                        Timber.e(e,"Error -> %s", e.getMessage());
+                    }
+                }
+            });
+        }
+
+        Button button6 = (Button) findViewById(R.id.button6);
+        if (button6 != null) {
+            button6.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    try {
+                        EditText editText = (EditText) findViewById(R.id.editText);
+                        String confirmationCode = editText.getText().toString();
+                        CognitoUser user = userPool.getUser("testuser3");
+                        user.confirmSignUpInBackground(confirmationCode, false, genericHandler);
                     } catch (Exception e) {
                         Timber.e(e,"Error -> %s", e.getMessage());
                     }

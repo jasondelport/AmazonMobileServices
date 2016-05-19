@@ -12,7 +12,7 @@ public class Constants {
     public static final String USER_POOL_ID = "";
     public static final String USER_POOL_CLIENT_ID = "";
     public static final String USER_POOL_SECRET = "";
-
+    public static final String EMAIL = "";
 
 
     public static final String TABLE_NAME = "NobelPrizes";
