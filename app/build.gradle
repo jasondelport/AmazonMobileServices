@@ -36,6 +36,7 @@ dependencies {
     compile "com.amazonaws:aws-android-sdk-ddb-mapper:$AMAZON_SDK_VERSION"
     compile "com.amazonaws:aws-android-sdk-sqs:$AMAZON_SDK_VERSION"
     compile "com.amazonaws:aws-android-sdk-mobileanalytics:$AMAZON_SDK_VERSION"
+    compile "com.amazonaws:aws-android-sdk-cognitoidentityprovider:$AMAZON_SDK_VERSION"
 
     compile 'io.reactivex:rxandroid:1.2.0'
     compile 'io.reactivex:rxjava:1.1.5'

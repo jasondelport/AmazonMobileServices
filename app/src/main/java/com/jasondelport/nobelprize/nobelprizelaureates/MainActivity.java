@@ -13,9 +13,20 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+import com.amazonaws.ClientConfiguration;
 import com.amazonaws.auth.CognitoCachingCredentialsProvider;
 import com.amazonaws.mobileconnectors.amazonmobileanalytics.InitializationException;
 import com.amazonaws.mobileconnectors.amazonmobileanalytics.MobileAnalyticsManager;
+import com.amazonaws.mobileconnectors.cognitoidentityprovider.CognitoUser;
+import com.amazonaws.mobileconnectors.cognitoidentityprovider.CognitoUserAttributes;
+import com.amazonaws.mobileconnectors.cognitoidentityprovider.CognitoUserCodeDeliveryDetails;
+import com.amazonaws.mobileconnectors.cognitoidentityprovider.CognitoUserPool;
+import com.amazonaws.mobileconnectors.cognitoidentityprovider.CognitoUserSession;
+import com.amazonaws.mobileconnectors.cognitoidentityprovider.continuations.AuthenticationContinuation;
+import com.amazonaws.mobileconnectors.cognitoidentityprovider.continuations.AuthenticationDetails;
+import com.amazonaws.mobileconnectors.cognitoidentityprovider.continuations.MultiFactorAuthenticationContinuation;
+import com.amazonaws.mobileconnectors.cognitoidentityprovider.handlers.AuthenticationHandler;
+import com.amazonaws.mobileconnectors.cognitoidentityprovider.handlers.SignUpHandler;
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferListener;
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferObserver;
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferState;
@@ -47,6 +58,31 @@ public class MainActivity extends AppCompatActivity {
 
     private static MobileAnalyticsManager analytics;
     private TextView textView;
+    AuthenticationHandler authHandler = new AuthenticationHandler() {
+
+        @Override
+        public void onSuccess(CognitoUserSession userSession) {
+            Timber.d("Successful user authentication -> %s", userSession.toString());
+            textView.setText("success -> " + userSession.toString());
+        }
+
+        @Override
+        public void getAuthenticationDetails(AuthenticationContinuation authenticationContinuation, String UserId) {
+            Timber.d("user details -> %s", authenticationContinuation.getParameters());
+            textView.setText("details -> " + authenticationContinuation.getParameters());
+        }
+
+        @Override
+        public void getMFACode(MultiFactorAuthenticationContinuation continuation) {
+
+        }
+
+        @Override
+        public void onFailure(Exception exception) {
+            Timber.e(exception, "Error -> %s", exception.getMessage());
+            textView.setText(exception.getMessage());
+        }
+    };
     private RecyclerView recyclerView;
     private List<NobelPrize> mNobelPrizes = new ArrayList<>();
     private RecyclerViewAdapter mAdapter;
@@ -71,9 +107,25 @@ public class MainActivity extends AppCompatActivity {
     private AmazonDynamoDBClient ddbClient = null;
     private AmazonSQS sqsClient = null;
     private AmazonS3 s3 = null;
+    private CognitoUserPool userPool = null;
     private TransferUtility transferUtility = null;
-    private Button button3;
+    private String userId = null;
+    SignUpHandler signUpHandler = new SignUpHandler() {
+        @Override
+        public void onSuccess(CognitoUser user, boolean signUpConfirmationState, CognitoUserCodeDeliveryDetails cognitoUserCodeDeliveryDetails) {
+            userId = user.getUserId();
 
+            Timber.d("Successful user registration -> %s", user.getUserId());
+            textView.setText("success -> " + user.getUserId());
+        }
+
+        @Override
+        public void onFailure(Exception exception) {
+            Timber.e(exception, "Error -> %s", exception.getMessage());
+            textView.setText(exception.getMessage());
+        }
+    };
+    private Button button3;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,6 +135,13 @@ public class MainActivity extends AppCompatActivity {
                 this,
                 Constants.IDENTITY_POOL_ID,
                 Regions.US_EAST_1);
+
+        try {
+            userPool = new CognitoUserPool(this, Constants.USER_POOL_ID,
+                    Constants.USER_POOL_CLIENT_ID, Constants.USER_POOL_SECRET, new ClientConfiguration());
+        } catch (Exception e) {
+            Timber.e("Error -> %s", e.getMessage());
+        }
 
         ddbClient = new AmazonDynamoDBClient(credentials);
         ddbClient.setRegion(Region.getRegion(Regions.US_WEST_2));
@@ -137,6 +196,7 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
+
         button3 = (Button) findViewById(R.id.button3);
         if (button3 != null) {
             button3.setOnClickListener(new View.OnClickListener() {
@@ -147,6 +207,34 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
+
+        Button button4 = (Button) findViewById(R.id.button4);
+        if (button4 != null) {
+            button4.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    CognitoUserAttributes atts = new CognitoUserAttributes();
+                    atts.addAttribute("email", "jason.delport@gmail.com");
+                    userPool.signUpInBackground("testuser", "Hello@1000", atts, null, signUpHandler);
+                }
+            });
+        }
+
+        Button button5 = (Button) findViewById(R.id.button5);
+        if (button5 != null) {
+            button5.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    try {
+                        AuthenticationDetails authDetails = new AuthenticationDetails("testuser", "Hello@1000", null);
+                        CognitoUser user = userPool.getUser(userId);
+                        user.authenticateUserInBackground(authDetails, authHandler);
+                    } catch (Exception e) {
+                        Timber.e(e,"Error -> %s", e.getMessage());
+                    }
+                }
+            });
+        }
 
         RxPermissions.getInstance(this)
                 .request(Manifest.permission.READ_EXTERNAL_STORAGE)
